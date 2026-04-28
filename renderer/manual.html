@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROMたん 使い方</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne:wght@400;600;700&display=swap');
+
+  :root {
+    --accent: #a78bfa;
+    --accent2: #34d399;
+    --bg: #0f0a1e;
+    --bg-glass: rgba(15, 10, 30, 0.72);
+    --bg-glass2: rgba(25, 18, 50, 0.60);
+    --border-g: rgba(167, 139, 250, 0.25);
+    --text: #f0eaff;
+    --text-muted: rgba(220, 210, 255, 0.55);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 24px;
+    line-height: 1.7;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-g);
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-family: 'Syne Mono', monospace;
+    font-size: 18px;
+    color: var(--text);
+  }
+  .header h1 span { color: var(--accent); }
+  .version {
+    margin-left: auto;
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(167,139,250,0.1);
+    border: 1px solid var(--border-g);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .section {
+    margin-bottom: 28px;
+  }
+  .section-title {
+    font-family: 'Syne Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-g);
+  }
+
+  .card {
+    background: var(--bg-glass2);
+    border: 1px solid var(--border-g);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+
+  .step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 24px; height: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-text {
+    font-size: 13px;
+    color: var(--text);
+  }
+  .step-text strong { color: var(--accent); }
+  .step-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-g);
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(167,139,250,0.07);
+    vertical-align: top;
+  }
+  td:first-child {
+    font-family: 'Syne Mono', monospace;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .tip {
+    background: rgba(52, 211, 153, 0.07);
+    border: 1px solid rgba(52, 211, 153, 0.2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--accent2);
+    margin-top: 8px;
+  }
+  .tip strong { font-size: 13px; }
+
+  .warn {
+    background: rgba(244, 114, 182, 0.07);
+    border: 1px solid rgba(244, 114, 182, 0.2);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #f472b6;
+    margin-top: 8px;
+  }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-g);
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-icon">👁</div>
+  <h1>入<span>室</span>チェッカー 使い方</h1>
+  <span class="version">v1.0.3</span>
+</div>
+
+<!-- 基本的な使い方 -->
+<div class="section">
+  <div class="section-title">基本的な使い方</div>
+  <div class="card">
+    <div class="step-list">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <strong>「Twitchでログイン」</strong>ボタンを押す
+          <div class="step-sub">Twitchの認証画面が開きます</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          TwitchアカウントでログインしてアプリへのアクセスをOKする
+          <div class="step-sub">ご自身の配信チャンネルのアカウントでログインしてください</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          ログイン完了後、自動で入室の検知が始まります
+          <div class="step-sub">「👁 @ユーザー名 でログイン中」と表示されれば成功です</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          視聴者が入室するたびに画面上にポップアップが表示されます
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-text">
+          終了するときは<strong>「ログアウト」</strong>ボタンを押してからアプリを閉じてください
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="tip">
+    💡 次回起動時は自動でログインされます。再認証の必要はありません。
+  </div>
+</div>
+
+<!-- 通知設定 -->
+<div class="section">
+  <div class="section-title">通知設定</div>
+  <div class="card">
+    <table>
+      <tr><th>設定項目</th><th>説明</th></tr>
+      <tr><td>表示位置</td><td>ポップアップを画面のどこに表示するか選べます（右下・左下・右上・左上・中央）</td></tr>
+      <tr><td>表示時間</td><td>ポップアップが表示される秒数（1〜5秒）</td></tr>
+      <tr><td>通知音</td><td>入室時に鳴る音を選べます。「なし（無音）」にすると音が鳴りません</td></tr>
+    </table>
+  </div>
+  <div class="warn">
+    ⚠️ <strong>OBSをお使いの方へ：</strong>通知音はデスクトップ音声としてOBSに拾われる場合があります。配信中に音を出したくない場合は通知音を<strong>「なし（無音）」</strong>に設定してください。
+  </div>
+</div>
+
+<!-- 入室ログ -->
+<div class="section">
+  <div class="section-title">入室ログ</div>
+  <div class="card">
+    <table>
+      <tr><th>機能</th><th>説明</th></tr>
+      <tr><td>入室ログ</td><td>検知中に入室したユーザーの一覧を表示します（最大50件）</td></tr>
+      <tr><td>カウンター</td><td>入室した人数を表示します</td></tr>
+      <tr><td>リセット</td><td>ログとカウンターを0にリセットします。検知はそのまま続きます</td></tr>
+    </table>
+  </div>
+  <div class="tip">
+    💡 同じユーザーが何度入室しても、1回しかカウントされません。
+  </div>
+</div>
+
+<!-- プレビュー -->
+<div class="section">
+  <div class="section-title">プレビュー機能</div>
+  <div class="card" style="font-size:13px;">
+    「<strong>通知プレビュー</strong>」ボタンを押すと、ログインしていない状態でもポップアップの見た目・位置・音を確認できます。設定を変えながら何度でも試せます。
+  </div>
+</div>
+
+<div class="footer">ROMたん v1.0.5</div>
+
+</body>
+</html>

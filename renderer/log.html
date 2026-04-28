@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>入室ログ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Syne+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #a78bfa;
+    --accent2: #34d399;
+    --bg-glass2: rgba(25, 18, 50, 0.60);
+    --border-g: rgba(167, 139, 250, 0.25);
+    --border-g2: rgba(167, 139, 250, 0.12);
+    --text: #f0eaff;
+    --text-muted: rgba(220, 210, 255, 0.55);
+    --shadow-glow: 0 0 24px rgba(167, 139, 250, 0.18);
+  }
+  body.light-mode {
+    --accent: #7c3aed;
+    --accent2: #059669;
+    --bg-glass2: rgba(237, 233, 254, 0.75);
+    --border-g: rgba(124, 58, 237, 0.22);
+    --border-g2: rgba(124, 58, 237, 0.10);
+    --text: #1e1033;
+    --text-muted: rgba(60, 40, 120, 0.55);
+    --shadow-glow: 0 0 24px rgba(124, 58, 237, 0.12);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #0f0a1e;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.light-mode {
+    background: #f5f3ff;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-g);
+    border-radius: 16px;
+    padding: 20px;
+    margin: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-glow);
+    min-height: 0;
+  }
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+  }
+  .log-header h2 {
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .badge {
+    background: rgba(167,139,250,0.15);
+    border: 1px solid rgba(167,139,250,0.25);
+    color: var(--accent);
+    font-family: 'Syne Mono', monospace;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .btn-sm {
+    background: transparent;
+    border: 1px solid var(--border-g);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    font-family: 'Syne Mono', monospace;
+    color: var(--text-muted);
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-g) transparent;
+  }
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg-glass2);
+    border: 1px solid var(--border-g2);
+    border-radius: 8px;
+    animation: slide-in 0.3s ease;
+    flex-shrink: 0;
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .log-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+    font-family: 'Syne Mono', monospace;
+  }
+  .log-name {
+    font-family: 'Syne Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+  }
+  .log-time {
+    font-family: 'Syne Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .log-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-family: 'Syne Mono', monospace;
+    font-size: 12px;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-g); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="log-header">
+    <h2>入室ログ</h2>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="badge" id="joinCount">0 人</span>
+      <button class="btn-sm" onclick="resetLog()">リセット</button>
+    </div>
+  </div>
+  <div class="log-list" id="logList">
+    <div class="log-empty" id="logEmpty">待機中...入室を検知します</div>
+  </div>
+</div>
+
+<script>
+let joinCount = 0;
+
+window.electronAPI.onLogHistory((entries) => {
+  entries.forEach(({ name, time }) => addLogWithTime(name, time));
+});
+
+window.electronAPI.onLogEntry((username) => {
+  addLog(username);
+});
+
+window.electronAPI.onThemeSync((isDark) => {
+  document.body.classList.toggle('light-mode', !isDark);
+});
+
+window.electronAPI.onLogReset(() => {
+  joinCount = 0;
+  document.getElementById('joinCount').textContent = '0 人';
+  document.getElementById('logList').innerHTML = '<div class="log-empty" id="logEmpty">リセットしました</div>';
+});
+
+function resetLog() {
+  joinCount = 0;
+  document.getElementById('joinCount').textContent = '0 人';
+  document.getElementById('logList').innerHTML = '<div class="log-empty" id="logEmpty">リセットしました</div>';
+}
+
+function addLog(username) {
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0') + ':' +
+                  now.getMinutes().toString().padStart(2,'0') + ':' +
+                  now.getSeconds().toString().padStart(2,'0');
+  addLogWithTime(username, timeStr);
+}
+
+function addLogWithTime(username, timeStr) {
+  const logList = document.getElementById('logList');
+  const logEmpty = document.getElementById('logEmpty');
+  if (logEmpty) logEmpty.remove();
+
+  joinCount++;
+  document.getElementById('joinCount').textContent = joinCount + ' 人';
+
+  const initial = username.charAt(0).toUpperCase();
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  item.innerHTML = `
+    <div class="log-avatar">${initial}</div>
+    <div class="log-name">@${username}</div>
+    <div class="log-time">${timeStr}</div>
+  `;
+  logList.insertBefore(item, logList.firstChild);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+node_modules/
+release/
+dist/
+*.log
+.DS_Store
+twitch-token.json
+settings.json
+.env
+.env.local
+CLAUDE.md
+nyuushitsu-checker.html
+docs/superpowers/

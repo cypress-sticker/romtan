@@ -1,0 +1,43 @@
+{
+  "name": "romtan",
+  "version": "1.0.5",
+  "description": "Twitch入室通知デスクトップアプリ ROMたん",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "postbuild": "node -e \"const fs=require('fs');const v=require('./package.json').version;fs.copyFileSync('renderer/manual.html','release/v'+v+'/マニュアル.html');console.log('マニュアル.html をコピーしました');\""
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "tmi.js": "^1.8.5",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.hinoki.romtan",
+    "productName": "ROMたん",
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "directories": {
+      "output": "release/v1.0.5"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "package.json"
+    ]
+  }
+}
