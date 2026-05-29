@@ -20,6 +20,37 @@ let broadcasterName = null;
 let seenChatters = new Set();
 let pollTimer = null;
 let isFirstPoll = true;
+let sessionLog = [];
+let viewerLog = [];
+let hasUnsavedData = false;
+let viewerPollTimer = null;
+let viewerHistory = { version: 1, viewers: {} };
+
+// ─── 来場者履歴 ───────────────────────────────────────────
+function getViewerHistoryPath() {
+  return path.join(app.getPath('userData'), 'viewer-history.json');
+}
+
+function loadViewerHistory() {
+  try {
+    const data = JSON.parse(fs.readFileSync(getViewerHistoryPath(), 'utf8'));
+    if (data.version === 1 && data.viewers) viewerHistory = data;
+  } catch {}
+}
+
+function saveViewerHistory() {
+  try { fs.writeFileSync(getViewerHistoryPath(), JSON.stringify(viewerHistory), 'utf8'); } catch {}
+}
+
+function addViewerRecord(login) {
+  const entry = viewerHistory.viewers[login];
+  if (entry) {
+    entry.count += 1;
+  } else {
+    viewerHistory.viewers[login] = { firstSeen: new Date().toISOString(), count: 1 };
+  }
+  saveViewerHistory();
+}
 
 // ─── HTTPS ヘルパー ───────────────────────────────────────────
 function httpsRequest(options, body = null) {
@@ -36,6 +67,14 @@ function httpsRequest(options, body = null) {
     if (body) req.write(body);
     req.end();
   });
+}
+
+// ─── 時刻ヘルパー ───────────────────────────────────────────
+function nowTimeStr() {
+  const d = new Date();
+  return d.getHours().toString().padStart(2,'0') + ':' +
+         d.getMinutes().toString().padStart(2,'0') + ':' +
+         d.getSeconds().toString().padStart(2,'0');
 }
 
 // ─── トークン保存 ───────────────────────────────────────────
@@ -93,7 +132,17 @@ async function getChatters(token, bId) {
     path: `/helix/chat/chatters?${params}`,
     headers: { 'Client-Id': CLIENT_ID, 'Authorization': `Bearer ${token}` },
   });
-  return r.data?.data || [];
+  return { status: r.status, data: r.data?.data || [] };
+}
+
+async function getViewerCount(token, bId) {
+  const params = new URLSearchParams({ user_id: bId });
+  const r = await httpsRequest({
+    hostname: 'api.twitch.tv',
+    path: `/helix/streams?${params}`,
+    headers: { 'Client-Id': CLIENT_ID, 'Authorization': `Bearer ${token}` },
+  });
+  return r.data?.data?.[0]?.viewer_count ?? null;
 }
 
 // ─── OAuth Implicit Flow ───────────────────────────────────────────
@@ -150,19 +199,25 @@ function startOAuthFlow() {
 // ─── チャタポーリング ───────────────────────────────────────────
 async function doPoll() {
   try {
-    const chatters = await getChatters(accessToken, broadcasterId);
-    const current = new Set(chatters.map(c => c.user_login));
+    const { status, data } = await getChatters(accessToken, broadcasterId);
+    if (status === 401) {
+      stopPolling();
+      if (controlWindow) controlWindow.webContents.send('token-expired');
+      return;
+    }
+    const current = new Set(data.map(c => c.user_login));
 
     if (isFirstPoll) {
       isFirstPoll = false;
-      for (const name of current) {
-        seenChatters.add(name);
-        if (controlWindow) controlWindow.webContents.send('new-chatter', name);
-      }
+      seenChatters = current;
     } else {
       for (const name of current) {
         if (!seenChatters.has(name)) {
           seenChatters.add(name);
+          addViewerRecord(name);
+          const timeStr = nowTimeStr();
+          sessionLog.push({ username: name, time: timeStr });
+          hasUnsavedData = true;
           if (controlWindow) controlWindow.webContents.send('new-chatter', name);
         }
       }
@@ -172,16 +227,33 @@ async function doPoll() {
   }
 }
 
+async function doViewerPoll() {
+  try {
+    const count = await getViewerCount(accessToken, broadcasterId);
+    if (count !== null) {
+      viewerLog.push({ time: nowTimeStr(), count });
+    }
+  } catch (e) {
+    console.error('Viewer poll error:', e.message);
+  }
+}
+
 function startPolling() {
   stopPolling();
   seenChatters = new Set();
   isFirstPoll = true;
+  sessionLog = [];
+  viewerLog = [];
+  hasUnsavedData = false;
   doPoll();
   pollTimer = setInterval(doPoll, POLL_INTERVAL_MS);
+  doViewerPoll();
+  viewerPollTimer = setInterval(doViewerPoll, 30000);
 }
 
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (viewerPollTimer) { clearInterval(viewerPollTimer); viewerPollTimer = null; }
 }
 
 // ─── 起動時の自動ログイン ───────────────────────────────────────────
@@ -272,6 +344,40 @@ function createWindows() {
   });
   controlWindow.loadFile(path.join(__dirname, 'renderer', 'control.html'));
 
+  controlWindow.on('close', async (e) => {
+    if (!hasUnsavedData) return;
+    e.preventDefault();
+    const { response } = await dialog.showMessageBox(controlWindow, {
+      type: 'question',
+      title: '保存されていないデータがあります',
+      message: `保存されていないログがあります（${sessionLog.length}人）`,
+      buttons: ['CSVで保存して終了', '保存せずに終了', 'キャンセル'],
+      defaultId: 0,
+      cancelId: 2,
+    });
+    if (response === 0) {
+      const { canceled, filePath } = await dialog.showSaveDialog(controlWindow, {
+        title: 'ログCSVを保存',
+        defaultPath: `romtan_log_${nowTimeStr().replace(/:/g,'')}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      });
+      if (!canceled && filePath) {
+        const romCsv = 'username,confirmed_time\n' +
+          sessionLog.map(e => `${e.username},${e.time}`).join('\n');
+        fs.writeFileSync(filePath, '﻿' + romCsv, 'utf8');
+        const viewerPath = filePath.replace(/\.csv$/, '_viewers.csv');
+        const viewerCsv = 'time,viewer_count\n' +
+          viewerLog.map(e => `${e.time},${e.count}`).join('\n');
+        fs.writeFileSync(viewerPath, '﻿' + viewerCsv, 'utf8');
+      }
+      hasUnsavedData = false;
+      controlWindow.destroy();
+    } else if (response === 1) {
+      hasUnsavedData = false;
+      controlWindow.destroy();
+    }
+  });
+
   controlWindow.webContents.on('did-finish-load', async () => {
     const user = await tryAutoLogin();
     if (user) {
@@ -307,7 +413,7 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (controlWindow) {
+    if (controlWindow && !controlWindow.isDestroyed()) {
       if (controlWindow.isMinimized()) controlWindow.restore();
       controlWindow.focus();
     }
@@ -316,6 +422,7 @@ if (!gotLock) {
 
 // ─── アプリ起動 ───────────────────────────────────────────
 app.whenReady().then(() => {
+  loadViewerHistory();
   createMenu();
   createWindows();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindows(); });
@@ -438,7 +545,39 @@ ipcMain.on('resize-control-window', (event, height) => {
 });
 
 ipcMain.on('reset-log', () => {
+  sessionLog = [];
+  hasUnsavedData = false;
   if (logWindow && !logWindow.isDestroyed()) {
     logWindow.webContents.send('log-reset');
   }
 });
+
+// ─── CSVエクスポート ───────────────────────────────────────────
+ipcMain.handle('export-csv', async () => {
+  const now = new Date();
+  const dateStr = now.getFullYear() +
+    ('0'+(now.getMonth()+1)).slice(-2) +
+    ('0'+now.getDate()).slice(-2) + '_' +
+    ('0'+now.getHours()).slice(-2) +
+    ('0'+now.getMinutes()).slice(-2);
+
+  const romPath = await dialog.showSaveDialog(controlWindow, {
+    title: 'ログCSVを保存',
+    defaultPath: `romtan_log_${dateStr}.csv`,
+    filters: [{ name: 'CSV', extensions: ['csv'] }],
+  });
+  if (romPath.canceled) return { ok: false };
+
+  const romCsv = 'username,confirmed_time\n' +
+    sessionLog.map(e => `${e.username},${e.time}`).join('\n');
+  fs.writeFileSync(romPath.filePath, '﻿' + romCsv, 'utf8');
+
+  const viewerPath = romPath.filePath.replace(/\.csv$/, '_viewers.csv');
+  const viewerCsv = 'time,viewer_count\n' +
+    viewerLog.map(e => `${e.time},${e.count}`).join('\n');
+  fs.writeFileSync(viewerPath, '﻿' + viewerCsv, 'utf8');
+
+  hasUnsavedData = false;
+  return { ok: true, path: romPath.filePath };
+});
+
