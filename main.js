@@ -12,6 +12,7 @@ const POLL_INTERVAL_MS = 5000;
 let controlWindow = null;
 let overlayWindow = null;
 let logWindow = null;
+let followManagerWindow = null;
 let currentThemeIsDark = true;
 let accessToken = null;
 let refreshTokenValue = null;
@@ -560,6 +561,9 @@ ipcMain.on('sync-theme', (event, isDark) => {
   if (logWindow && !logWindow.isDestroyed()) {
     logWindow.webContents.send('theme-sync', isDark);
   }
+  if (followManagerWindow && !followManagerWindow.isDestroyed()) {
+    followManagerWindow.webContents.send('theme-sync', isDark);
+  }
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send('theme-sync', isDark);
   }
@@ -619,3 +623,43 @@ ipcMain.handle('export-csv', async () => {
   return { ok: true, path: romPath.filePath };
 });
 
+// ─── フォロー管理ウィンドウ ───────────────────────────────────────────
+ipcMain.on('open-follow-manager', () => {
+  if (followManagerWindow && !followManagerWindow.isDestroyed()) {
+    followManagerWindow.focus();
+    return;
+  }
+  followManagerWindow = new BrowserWindow({
+    width: 720, height: 700,
+    minWidth: 560, minHeight: 400,
+    title: 'フォロー管理',
+    autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  followManagerWindow.loadFile(path.join(__dirname, 'renderer', 'follow-manager.html'));
+  followManagerWindow.webContents.once('did-finish-load', () => {
+    followManagerWindow.webContents.send('theme-sync', currentThemeIsDark);
+  });
+  followManagerWindow.on('closed', () => {
+    followManagerWindow = null;
+  });
+});
+
+ipcMain.handle('fetch-follow-data', async () => {
+  if (!accessToken || !broadcasterId) {
+    return { error: 'ログインが必要です' };
+  }
+  try {
+    const [followers, following] = await Promise.all([
+      fetchAllFollowers(accessToken, broadcasterId),
+      fetchAllFollowing(accessToken, broadcasterId),
+    ]);
+    return { followers, following, viewers: viewerHistory.viewers };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
+ipcMain.on('open-external', (event, url) => {
+  shell.openExternal(url);
+});
