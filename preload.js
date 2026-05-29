@@ -35,4 +35,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onThemeSync: (cb) => ipcRenderer.on('theme-sync', (e, isDark) => cb(isDark)),
   onLogReset: (cb) => ipcRenderer.on('log-reset', (e) => cb()),
   resetLog: () => ipcRenderer.send('reset-log'),
+
+  // ── v1.1.0 追加 ──
+  exportCsv: () => ipcRenderer.invoke('export-csv'),
+  onTokenExpired: (cb) => ipcRenderer.on('token-expired', (e) => cb()),
+
+  // ── v2 フォロー管理 ──
+  openFollowManager: () => ipcRenderer.send('open-follow-manager'),
+  fetchFollowData: () => ipcRenderer.invoke('fetch-follow-data'),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
 });
