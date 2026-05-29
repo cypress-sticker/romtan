@@ -145,6 +145,44 @@ async function getViewerCount(token, bId) {
   return r.data?.data?.[0]?.viewer_count ?? null;
 }
 
+async function fetchAllFollowers(token, bId) {
+  const results = [];
+  let cursor = null;
+  do {
+    const params = new URLSearchParams({ broadcaster_id: bId, first: '100' });
+    if (cursor) params.set('after', cursor);
+    const r = await httpsRequest({
+      hostname: 'api.twitch.tv',
+      path: `/helix/channels/followers?${params}`,
+      headers: { 'Client-Id': CLIENT_ID, 'Authorization': `Bearer ${token}` },
+    });
+    if (r.status === 401 || r.status === 403) throw new Error(`scope_error:${r.status}`);
+    if (r.status !== 200) break;
+    results.push(...(r.data.data || []));
+    cursor = r.data.pagination?.cursor || null;
+  } while (cursor);
+  return results;
+}
+
+async function fetchAllFollowing(token, userId) {
+  const results = [];
+  let cursor = null;
+  do {
+    const params = new URLSearchParams({ user_id: userId, first: '100' });
+    if (cursor) params.set('after', cursor);
+    const r = await httpsRequest({
+      hostname: 'api.twitch.tv',
+      path: `/helix/channels/followed?${params}`,
+      headers: { 'Client-Id': CLIENT_ID, 'Authorization': `Bearer ${token}` },
+    });
+    if (r.status === 401 || r.status === 403) throw new Error(`scope_error:${r.status}`);
+    if (r.status !== 200) break;
+    results.push(...(r.data.data || []));
+    cursor = r.data.pagination?.cursor || null;
+  } while (cursor);
+  return results;
+}
+
 // ─── OAuth Implicit Flow ───────────────────────────────────────────
 function startOAuthFlow() {
   const state = crypto.randomBytes(16).toString('hex');
@@ -153,7 +191,7 @@ function startOAuthFlow() {
   authUrl.searchParams.set('client_id', CLIENT_ID);
   authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
   authUrl.searchParams.set('response_type', 'token');
-  authUrl.searchParams.set('scope', 'moderator:read:chatters');
+  authUrl.searchParams.set('scope', 'moderator:read:chatters moderator:read:followers user:read:follows');
   authUrl.searchParams.set('state', state);
 
   return new Promise((resolve, reject) => {
