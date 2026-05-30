@@ -200,6 +200,31 @@ tr:hover td { background: rgba(167,139,250,0.04); }
   vertical-align: middle;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+.mode-group {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border-g2);
+  padding-bottom: 10px;
+}
+.mode-btn {
+  background: transparent;
+  border: 1px solid var(--border-g2);
+  border-radius: 8px;
+  padding: 5px 16px;
+  font-size: 13px;
+  font-family: 'Syne', sans-serif;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+.mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+.mode-btn.active {
+  background: rgba(167,139,250,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 </style>
 </head>
 <body>
@@ -214,17 +239,17 @@ tr:hover td { background: rgba(167,139,250,0.04); }
   </div>
 </div>
 
+<div class="mode-group">
+  <button class="mode-btn active" data-mode="followers" onclick="setMode('followers')">フォロワー</button>
+  <button class="mode-btn" data-mode="following" onclick="setMode('following')">フォロー中</button>
+</div>
+
 <div class="controls">
-  <div class="filter-group">
-    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">全員</button>
-    <button class="filter-btn" data-filter="visited" onclick="setFilter('visited')">配信に来た人</button>
-    <button class="filter-btn" data-filter="one-sided" onclick="setFilter('one-sided')">片思い</button>
-    <button class="filter-btn" data-filter="mutual" onclick="setFilter('mutual')">相互さん</button>
-  </div>
+  <div class="filter-group" id="filterGroup"></div>
   <div class="sort-group">
     <select id="sortSelect" onchange="setSort(this.value)">
-      <option value="newest">フォローされた順（新しい順）</option>
-      <option value="oldest">フォローされた順（古い順）</option>
+      <option value="newest">新しい順</option>
+      <option value="oldest">古い順</option>
       <option value="alpha">アルファベット順</option>
     </select>
   </div>
@@ -244,8 +269,11 @@ tr:hover td { background: rgba(167,139,250,0.04); }
 
 <script>
 const PAGE_SIZE = 1000;
+let currentMode = 'followers'; // 'followers' | 'following'
 let allFollowers = [];
+let allFollowing = [];
 let followingSet = new Set();
+let followersSet = new Set();
 let viewerSet = new Set();
 let currentFilter = 'all';
 let currentSort = 'newest';
@@ -277,7 +305,9 @@ async function loadData() {
     }
 
     allFollowers = data.followers || [];
+    allFollowing = data.following || [];
     followingSet = new Set((data.following || []).map(f => f.broadcaster_login));
+    followersSet = new Set((data.followers || []).map(f => f.user_login));
     viewerSet = new Set(Object.keys(data.viewers || {}));
     currentPage = 0;
     applyFilterAndSort();
@@ -290,6 +320,30 @@ async function loadData() {
     refreshBtn.disabled = false;
     loadingIndicator.style.display = 'none';
   }
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  currentFilter = 'all';
+  currentPage = 0;
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  renderFilterButtons();
+  applyFilterAndSort();
+  render();
+}
+
+function renderFilterButtons() {
+  const isFollowersMode = currentMode === 'followers';
+  const filterGroup = document.getElementById('filterGroup');
+  const onesidedLabel = isFollowersMode ? '片思われ' : '片思い';
+  filterGroup.innerHTML = `
+    <button class="filter-btn${currentFilter === 'all' ? ' active' : ''}" data-filter="all" onclick="setFilter('all')">全員</button>
+    <button class="filter-btn${currentFilter === 'visited' ? ' active' : ''}" data-filter="visited" onclick="setFilter('visited')">配信に来た人</button>
+    <button class="filter-btn${currentFilter === 'one-sided' ? ' active' : ''}" data-filter="one-sided" onclick="setFilter('one-sided')">${onesidedLabel}</button>
+    <button class="filter-btn${currentFilter === 'mutual' ? ' active' : ''}" data-filter="mutual" onclick="setFilter('mutual')">相互さん</button>
+  `;
 }
 
 function setFilter(filter) {
@@ -310,20 +364,29 @@ function setSort(sort) {
 }
 
 function applyFilterAndSort() {
-  let list = [...allFollowers];
+  const isFollowersMode = currentMode === 'followers';
+  const baseList = isFollowersMode ? allFollowers : allFollowing;
+  const getLogin = isFollowersMode
+    ? f => f.user_login
+    : f => f.broadcaster_login;
+  const isMutualFn = isFollowersMode
+    ? f => followingSet.has(getLogin(f))
+    : f => followersSet.has(getLogin(f));
+
+  let list = [...baseList];
   if (currentFilter === 'visited') {
-    list = list.filter(f => viewerSet.has(f.user_login));
+    list = list.filter(f => viewerSet.has(getLogin(f)));
   } else if (currentFilter === 'one-sided') {
-    list = list.filter(f => !followingSet.has(f.user_login));
+    list = list.filter(f => !isMutualFn(f));
   } else if (currentFilter === 'mutual') {
-    list = list.filter(f => followingSet.has(f.user_login));
+    list = list.filter(f => isMutualFn(f));
   }
   if (currentSort === 'newest') {
     list.sort((a, b) => new Date(b.followed_at) - new Date(a.followed_at));
   } else if (currentSort === 'oldest') {
     list.sort((a, b) => new Date(a.followed_at) - new Date(b.followed_at));
   } else {
-    list.sort((a, b) => a.user_login.localeCompare(b.user_login));
+    list.sort((a, b) => getLogin(a).localeCompare(getLogin(b)));
   }
   filteredList = list;
 }
@@ -335,31 +398,44 @@ function changePage(delta) {
 }
 
 function render() {
+  const isFollowersMode = currentMode === 'followers';
+  const getLogin = isFollowersMode ? f => f.user_login : f => f.broadcaster_login;
+  const getName = isFollowersMode ? f => f.user_name : f => f.broadcaster_name;
+  const isMutualFn = isFollowersMode
+    ? f => followingSet.has(getLogin(f))
+    : f => followersSet.has(getLogin(f));
+  const dateLabel = isFollowersMode ? 'フォローされた日' : 'フォローした日';
+  const emptyMsg = isFollowersMode ? 'フォロワー' : 'フォロー中のユーザー';
+  const baseCount = isFollowersMode ? allFollowers.length : allFollowing.length;
+  const onesidedLabel = isFollowersMode ? '片思われ' : '片思い';
+
   const totalPages = Math.ceil(filteredList.length / PAGE_SIZE) || 1;
   const start = currentPage * PAGE_SIZE;
   const end = Math.min(start + PAGE_SIZE, filteredList.length);
   const pageItems = filteredList.slice(start, end);
 
-  document.getElementById('countBar').textContent = allFollowers.length === 0
+  document.getElementById('countBar').textContent = baseCount === 0
     ? ''
     : `${filteredList.length.toLocaleString()}件中 ${start + 1}–${end}件を表示`;
 
   if (filteredList.length === 0) {
-    document.getElementById('contentArea').innerHTML = '<div class="state-message">条件に一致するフォロワーがいません</div>';
+    document.getElementById('contentArea').innerHTML = `<div class="state-message">条件に一致する${emptyMsg}がいません</div>`;
     document.getElementById('pagination').style.display = 'none';
     return;
   }
 
   const rows = pageItems.map(f => {
-    const isMutual = followingSet.has(f.user_login);
-    const isVisited = viewerSet.has(f.user_login);
+    const login = getLogin(f);
+    const displayName = getName(f);
+    const isMutual = isMutualFn(f);
+    const isVisited = viewerSet.has(login);
     const date = f.followed_at ? f.followed_at.slice(0, 10) : '—';
     const statusBadge = isMutual
       ? '<span class="badge badge-mutual">相互</span>'
-      : '<span class="badge badge-one-sided">片思い</span>';
+      : `<span class="badge badge-one-sided">${onesidedLabel}</span>`;
     const visitedBadge = isVisited ? ' <span class="badge-visited">🎥</span>' : '';
-    const safeName = f.user_name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const safeLogin = f.user_login.replace(/'/g, "\\'");
+    const safeName = displayName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safeLogin = login.replace(/'/g, "\\'");
     return `<tr>
       <td><a class="name-link" onclick="openProfile('${safeLogin}')">${safeName}${visitedBadge}</a></td>
       <td>${date}</td>
@@ -370,7 +446,7 @@ function render() {
   document.getElementById('contentArea').innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr><th>名前</th><th>フォロー日</th><th>状態</th></tr></thead>
+        <thead><tr><th>名前</th><th>${dateLabel}</th><th>状態</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -390,6 +466,7 @@ function openProfile(login) {
   window.electronAPI.openExternal(`https://twitch.tv/${login}`);
 }
 
+renderFilterButtons();
 loadData();
 </script>
 </body>
