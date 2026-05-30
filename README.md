@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)](https://github.com/cypress-sticker/romtan/releases)
-[![Version](https://img.shields.io/badge/Version-2.0.0-green.svg)](https://github.com/cypress-sticker/romtan/releases)
+[![Version](https://img.shields.io/badge/Version-2.0.1-green.svg)](https://github.com/cypress-sticker/romtan/releases)
 
 [English README](README.en.md)
 
@@ -104,6 +104,9 @@ renderer/
 ---
 
 ## バージョン履歴
+
+### v2.0.1（2026-05-30）
+- アプリを閉じた後に再起動できなくなるバグを修正
 
 ### v2.0.0（2026-05-30）
 - **フォロー管理ウィンドウを追加**（メイン機能）
