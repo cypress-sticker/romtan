@@ -271,6 +271,20 @@
     align-items: center;
   }
   .sound-row select { flex: 1; }
+  .token-expired-banner {
+    display: none;
+    background: rgba(244, 114, 182, 0.15);
+    border: 1px solid rgba(244, 114, 182, 0.45);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-family: 'Syne Mono', monospace;
+    font-size: 12px;
+    color: var(--warn);
+    text-align: center;
+    line-height: 1.5;
+  }
+  .token-expired-banner.visible { display: block; }
+
   .btn-sm {
     height: 36px;
     padding: 0 12px;
@@ -548,6 +562,7 @@
     <div id="connectedArea" style="margin-top: 16px; display:none;">
       <div class="user-info-bar">
         <div class="user-info-name" id="userNameDisplay"></div>
+        <button class="btn-sm" onclick="openFollowManager()">フォロー管理</button>
         <button class="btn-sm" onclick="logout()">ログアウト</button>
       </div>
       <div class="status-bar" style="margin-top:10px;">
@@ -622,12 +637,19 @@
     </button>
   </div>
 
+  <!-- トークン期限切れ警告 -->
+  <div class="token-expired-banner" id="tokenExpiredBanner">
+    ⚠️ 認証トークンが期限切れです。再ログインしてください。<br>
+    <small>ポーリングを停止しました。ログデータは保持されています。</small>
+  </div>
+
   <!-- ログ -->
   <div class="panel">
     <div class="log-header">
       <h2>入室ログ</h2>
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="badge" id="joinCount">0 人</span>
+        <button class="btn-sm" id="csvBtnMain" onclick="exportCsvMain()">CSVで保存</button>
         <button class="btn-log-window" id="btnLogWindow" onclick="toggleLogWindow()">別ウィンドウ</button>
         <button class="btn-sm" onclick="resetLog()">リセット</button>
       </div>
@@ -661,6 +683,12 @@ window.electronAPI.onLoginStatus(({ status }) => {
 window.electronAPI.onLoginError((msg) => {
   document.getElementById('loginBtn').disabled = false;
   document.getElementById('statusText').textContent = 'ログイン失敗: ' + msg;
+  document.getElementById('statusDot').className = 'status-dot error';
+});
+
+window.electronAPI.onTokenExpired(() => {
+  document.getElementById('tokenExpiredBanner').classList.add('visible');
+  document.getElementById('statusText').textContent = 'トークン期限切れ — 再ログインしてください';
   document.getElementById('statusDot').className = 'status-dot error';
 });
 
@@ -745,6 +773,25 @@ function playSoundTest() {
   if (v !== 'none') playSoundLocal(v);
 }
 
+async function exportCsvMain() {
+  const btn = document.getElementById('csvBtnMain');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  try {
+    const result = await window.electronAPI.exportCsv();
+    if (result.ok) {
+      btn.textContent = '保存済み ✓';
+      setTimeout(() => { btn.textContent = 'CSVで保存'; btn.disabled = false; }, 2000);
+    } else {
+      btn.textContent = 'CSVで保存';
+      btn.disabled = false;
+    }
+  } catch {
+    btn.textContent = 'CSVで保存';
+    btn.disabled = false;
+  }
+}
+
 function resetLog() {
   joinCount = 0;
   document.getElementById('joinCount').textContent = '0 人';
@@ -794,6 +841,10 @@ function startLogin() {
   window.electronAPI.startLogin();
 }
 
+function openFollowManager() {
+  window.electronAPI.openFollowManager();
+}
+
 function logout() {
   window.electronAPI.logout();
   document.getElementById('connectedArea').style.display = 'none';
@@ -810,6 +861,7 @@ function showConnectedUI(username) {
   document.getElementById('loginArea').style.display = 'none';
   document.getElementById('connectedArea').style.display = 'block';
   document.getElementById('userNameDisplay').textContent = '👁 @' + username + ' でログイン中';
+  document.getElementById('tokenExpiredBanner').classList.remove('visible');
   joinCount = 0;
   document.getElementById('joinCount').textContent = '0 人';
   document.getElementById('logList').innerHTML = '<div class="log-empty" id="logEmpty">待機中...入室を検知します</div>';
