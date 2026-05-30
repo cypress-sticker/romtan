@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)](https://github.com/cypress-sticker/romtan/releases)
-[![Version](https://img.shields.io/badge/Version-1.0.5-green.svg)](https://github.com/cypress-sticker/romtan/releases)
+[![Version](https://img.shields.io/badge/Version-2.0.0-green.svg)](https://github.com/cypress-sticker/romtan/releases)
 
 [English README](README.en.md)
 
@@ -100,6 +100,29 @@ renderer/
 2. 新規入室者を検知 → `control.html` にイベントを送信
 3. `control.html` → `main.js` → `overlay.html` へ IPC で通知
 4. `overlay.html` がポップアップを表示
+
+---
+
+## バージョン履歴
+
+### v2.0.0（2026-05-30）
+- **フォロー管理ウィンドウを追加**（メイン機能）
+  - 「フォロワー」「フォロー中」のモード切替
+  - フォロワーモード：全員 / 配信に来た人 / 片思われ / 相互さん のフィルター
+  - フォロー中モード：全員 / 配信に来た人 / 片思い / 相互さん のフィルター
+  - 新しい順 / 古い順 / アルファベット順 のソート
+  - 名前クリックで Twitch プロフィールを開く
+- **来場者履歴の自動蓄積** — 配信ごとに来場者を記録し「配信に来た人」フィルターに活用
+- CSVエクスポート機能を追加
+- 認証トークン期限切れ時の案内表示を追加
+
+### v1.0.5（2026-04-21）
+- 初回リリース
+- Twitch 入室通知のポップアップ表示
+- クリックスルーオーバーレイ
+- 通知音・表示位置カスタマイズ
+- 入室ログウィンドウ
+- ダーク / ライトモード
 
 ---
 
