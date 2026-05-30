@@ -283,7 +283,9 @@ async function loadData() {
     applyFilterAndSort();
     render();
   } catch (e) {
-    document.getElementById('contentArea').innerHTML = `<div class="state-message">エラーが発生しました: ${e.message}</div>`;
+    const errEl = document.getElementById('contentArea');
+    errEl.innerHTML = '<div class="state-message"></div>';
+    errEl.querySelector('.state-message').textContent = `エラーが発生しました: ${e.message}`;
   } finally {
     refreshBtn.disabled = false;
     loadingIndicator.style.display = 'none';

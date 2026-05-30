@@ -1,6 +1,6 @@
 {
   "name": "romtan",
-  "version": "1.0.5",
+  "version": "2.0.0",
   "description": "Twitch入室通知デスクトップアプリ ROMたん",
   "main": "main.js",
   "scripts": {
@@ -31,7 +31,7 @@
       "allowToChangeInstallationDirectory": true
     },
     "directories": {
-      "output": "release/v1.0.5"
+      "output": "release/v2.0.0"
     },
     "files": [
       "main.js",
