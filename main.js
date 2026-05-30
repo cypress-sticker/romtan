@@ -417,6 +417,10 @@ function createWindows() {
     }
   });
 
+  controlWindow.on('closed', () => {
+    app.quit();
+  });
+
   controlWindow.webContents.on('did-finish-load', async () => {
     const user = await tryAutoLogin();
     if (user) {
