@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フォロー管理</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne:wght@400;600;700&display=swap');
+
+:root {
+  --accent: #a78bfa;
+  --accent2: #34d399;
+  --bg-glass: rgba(15, 10, 30, 0.72);
+  --bg-glass2: rgba(25, 18, 50, 0.60);
+  --border-g: rgba(167, 139, 250, 0.25);
+  --border-g2: rgba(167, 139, 250, 0.12);
+  --text: #f0eaff;
+  --text-muted: rgba(220, 210, 255, 0.55);
+}
+.light-mode {
+  --accent: #7c3aed;
+  --accent2: #059669;
+  --bg-glass: rgba(250, 248, 255, 0.88);
+  --bg-glass2: rgba(237, 233, 254, 0.75);
+  --border-g: rgba(124, 58, 237, 0.22);
+  --border-g2: rgba(124, 58, 237, 0.10);
+  --text: #1e1033;
+  --text-muted: rgba(60, 40, 120, 0.55);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Syne', sans-serif;
+  background: #0f0a1e;
+  color: var(--text);
+  min-height: 100vh;
+  padding: 16px;
+  transition: color 0.3s, background 0.3s;
+}
+body.light-mode { background: #f5f3ff; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+h1 {
+  font-family: 'Syne Mono', monospace;
+  font-size: 16px;
+  color: var(--accent);
+}
+.btn-refresh {
+  background: transparent;
+  border: 1px solid var(--border-g);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: 'Syne', sans-serif;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+.btn-refresh:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-btn {
+  background: transparent;
+  border: 1px solid var(--border-g2);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: 'Syne', sans-serif;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+.filter-btn.active {
+  background: rgba(167,139,250,0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sort-group { display: flex; align-items: center; gap: 6px; }
+.sort-group select {
+  background: var(--bg-glass2);
+  border: 1px solid var(--border-g);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: 'Syne', sans-serif;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.count-bar {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  font-family: 'Syne Mono', monospace;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-g2);
+  border-radius: 10px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: var(--bg-glass2);
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-g2);
+  white-space: nowrap;
+}
+td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-g2);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(167,139,250,0.04); }
+
+.name-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-family: 'Syne Mono', monospace;
+  cursor: pointer;
+}
+.name-link:hover { text-decoration: underline; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-mutual {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52,211,153,0.3);
+}
+.badge-one-sided {
+  background: rgba(167, 139, 250, 0.12);
+  color: var(--accent);
+  border: 1px solid var(--border-g2);
+}
+.badge-visited { font-size: 10px; color: var(--accent2); }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: 'Syne Mono', monospace;
+}
+.btn-page {
+  background: transparent;
+  border: 1px solid var(--border-g);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-page:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn-page:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.state-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid var(--border-g);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>フォロー管理</h1>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span id="loadingIndicator" style="display:none;font-size:12px;color:var(--text-muted);">
+      <span class="spinner"></span>取得中...
+    </span>
+    <button class="btn-refresh" id="refreshBtn" onclick="loadData()">更新</button>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="filter-group">
+    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">全員</button>
+    <button class="filter-btn" data-filter="visited" onclick="setFilter('visited')">配信に来た人</button>
+    <button class="filter-btn" data-filter="one-sided" onclick="setFilter('one-sided')">片思い</button>
+    <button class="filter-btn" data-filter="mutual" onclick="setFilter('mutual')">相互さん</button>
+  </div>
+  <div class="sort-group">
+    <select id="sortSelect" onchange="setSort(this.value)">
+      <option value="newest">フォローされた順（新しい順）</option>
+      <option value="oldest">フォローされた順（古い順）</option>
+      <option value="alpha">アルファベット順</option>
+    </select>
+  </div>
+</div>
+
+<div class="count-bar" id="countBar"></div>
+
+<div id="contentArea">
+  <div class="state-message"><span class="spinner"></span>データを取得中...</div>
+</div>
+
+<div class="pagination" id="pagination" style="display:none;">
+  <button class="btn-page" id="btnPrev" onclick="changePage(-1)">← 前</button>
+  <span id="pageLabel"></span>
+  <button class="btn-page" id="btnNext" onclick="changePage(1)">次 →</button>
+</div>
+
+<script>
+const PAGE_SIZE = 1000;
+let allFollowers = [];
+let followingSet = new Set();
+let viewerSet = new Set();
+let currentFilter = 'all';
+let currentSort = 'newest';
+let currentPage = 0;
+let filteredList = [];
+
+window.electronAPI.onThemeSync((isDark) => {
+  document.body.classList.toggle('light-mode', !isDark);
+});
+
+async function loadData() {
+  const refreshBtn = document.getElementById('refreshBtn');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  refreshBtn.disabled = true;
+  loadingIndicator.style.display = '';
+  document.getElementById('contentArea').innerHTML = '<div class="state-message"><span class="spinner"></span>データを取得中...</div>';
+  document.getElementById('pagination').style.display = 'none';
+  document.getElementById('countBar').textContent = '';
+
+  try {
+    const data = await window.electronAPI.fetchFollowData();
+    if (data.error) {
+      const isScope = data.error.includes('scope_error') || data.error.includes('401') || data.error.includes('403');
+      const msg = isScope
+        ? '⚠️ 権限が不足しています。<br>一度ログアウトして再ログインしてください。'
+        : `エラー: ${data.error}`;
+      document.getElementById('contentArea').innerHTML = `<div class="state-message">${msg}</div>`;
+      return;
+    }
+
+    allFollowers = data.followers || [];
+    followingSet = new Set((data.following || []).map(f => f.broadcaster_login));
+    viewerSet = new Set(Object.keys(data.viewers || {}));
+    currentPage = 0;
+    applyFilterAndSort();
+    render();
+  } catch (e) {
+    document.getElementById('contentArea').innerHTML = `<div class="state-message">エラーが発生しました: ${e.message}</div>`;
+  } finally {
+    refreshBtn.disabled = false;
+    loadingIndicator.style.display = 'none';
+  }
+}
+
+function setFilter(filter) {
+  currentFilter = filter;
+  currentPage = 0;
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  applyFilterAndSort();
+  render();
+}
+
+function setSort(sort) {
+  currentSort = sort;
+  currentPage = 0;
+  applyFilterAndSort();
+  render();
+}
+
+function applyFilterAndSort() {
+  let list = [...allFollowers];
+  if (currentFilter === 'visited') {
+    list = list.filter(f => viewerSet.has(f.user_login));
+  } else if (currentFilter === 'one-sided') {
+    list = list.filter(f => !followingSet.has(f.user_login));
+  } else if (currentFilter === 'mutual') {
+    list = list.filter(f => followingSet.has(f.user_login));
+  }
+  if (currentSort === 'newest') {
+    list.sort((a, b) => new Date(b.followed_at) - new Date(a.followed_at));
+  } else if (currentSort === 'oldest') {
+    list.sort((a, b) => new Date(a.followed_at) - new Date(b.followed_at));
+  } else {
+    list.sort((a, b) => a.user_login.localeCompare(b.user_login));
+  }
+  filteredList = list;
+}
+
+function changePage(delta) {
+  const totalPages = Math.ceil(filteredList.length / PAGE_SIZE);
+  currentPage = Math.max(0, Math.min(totalPages - 1, currentPage + delta));
+  render();
+}
+
+function render() {
+  const totalPages = Math.ceil(filteredList.length / PAGE_SIZE) || 1;
+  const start = currentPage * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, filteredList.length);
+  const pageItems = filteredList.slice(start, end);
+
+  document.getElementById('countBar').textContent = allFollowers.length === 0
+    ? ''
+    : `${filteredList.length.toLocaleString()}件中 ${start + 1}–${end}件を表示`;
+
+  if (filteredList.length === 0) {
+    document.getElementById('contentArea').innerHTML = '<div class="state-message">条件に一致するフォロワーがいません</div>';
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+
+  const rows = pageItems.map(f => {
+    const isMutual = followingSet.has(f.user_login);
+    const isVisited = viewerSet.has(f.user_login);
+    const date = f.followed_at ? f.followed_at.slice(0, 10) : '—';
+    const statusBadge = isMutual
+      ? '<span class="badge badge-mutual">相互</span>'
+      : '<span class="badge badge-one-sided">片思い</span>';
+    const visitedBadge = isVisited ? ' <span class="badge-visited">🎥</span>' : '';
+    const safeName = f.user_name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const safeLogin = f.user_login.replace(/'/g, "\\'");
+    return `<tr>
+      <td><a class="name-link" onclick="openProfile('${safeLogin}')">${safeName}${visitedBadge}</a></td>
+      <td>${date}</td>
+      <td>${statusBadge}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('contentArea').innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>名前</th><th>フォロー日</th><th>状態</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  const pagination = document.getElementById('pagination');
+  if (totalPages <= 1) {
+    pagination.style.display = 'none';
+  } else {
+    pagination.style.display = 'flex';
+    document.getElementById('pageLabel').textContent = `${currentPage + 1} / ${totalPages}ページ`;
+    document.getElementById('btnPrev').disabled = currentPage === 0;
+    document.getElementById('btnNext').disabled = currentPage >= totalPages - 1;
+  }
+}
+
+function openProfile(login) {
+  window.electronAPI.openExternal(`https://twitch.tv/${login}`);
+}
+
+loadData();
+</script>
+</body>
+</html>
